@@ -1,11 +1,13 @@
-﻿using System.Collections.Specialized;
-using System.Data;
+﻿
 using System.Data.SqlClient;
+using System.Xml;
+using System.Xml.Linq;
 
 class ETL
 {
     static string stringConnection;
     static string inboxPath;
+    static string XmlPath;
     string pathconfig = @"C:\code\ETL\ETL\";
     public void TestDB()
     {
@@ -39,7 +41,7 @@ class ETL
 
                 int rowsAffected = command.ExecuteNonQuery();
 
-                Console.WriteLine("Inserted {0} row(s)", rowsAffected);
+                Console.WriteLine("Log: Inserted {0} row(s)", rowsAffected);
             }
             connection.Close();
         }
@@ -63,59 +65,85 @@ class ETL
    
     public void LeerConfig()
     {
-        Dictionary<string, string> configValues = ReadConfigFile(pathconfig+"/config.cfg");
+        Dictionary<string, string> configValues = ReadConfigFile(pathconfig+"config.cfg");
 
-        Console.WriteLine("InboxPath: " + configValues["InboxPath"]);
-        Console.WriteLine("StringConnection: " + configValues["StringConnection"]);
+      
+        if (configValues.ContainsKey("InboxPath"))
+        {
+            inboxPath = configValues["InboxPath"];
+        }
+
+        
+        if (configValues.ContainsKey("StringConnection"))
+        {
+            stringConnection = configValues["StringConnection"];
+        }
+
+        
+        if (configValues.ContainsKey("XmlPath"))
+        {
+            XmlPath = configValues["XmlPath"];
+        }
+
+        Console.WriteLine("InboxPath: " + inboxPath);
+        Console.WriteLine("StringConnection: " + stringConnection);
+        Console.WriteLine("XmlPath: " + XmlPath);
     }
 
     private static Dictionary<string, string> ReadConfigFile(string fileName)
     {
         Dictionary<string, string> configValues = new Dictionary<string, string>();
 
-        try
+        using (StreamReader reader = new StreamReader(fileName))
         {
-            using (StreamReader reader = new StreamReader(fileName))
+            while (!reader.EndOfStream)
             {
-                string line;
-                while ((line = reader.ReadLine()) != null)
+                string line = reader.ReadLine();
+                int separatorIndex = line.IndexOf('=');
+
+                if (separatorIndex >= 0)
                 {
-                    if (line.StartsWith("#"))
-                    {
-                        continue;
-                    }
-
-                    int index = line.IndexOf("=");
-                    if (index < 0)
-                    {
-                        continue;
-                    }
-
-                    string key = line.Substring(0, index).Trim();
-                    string value = line.Substring(index + 1).Trim();
+                    string key = line.Substring(0, separatorIndex).Trim();
+                    string value = line.Substring(separatorIndex + 1).Trim();
 
                     configValues[key] = value;
                 }
             }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Error reading config file: " + ex.Message);
-        }
 
-        if (configValues.ContainsKey("InboxPath"))
-        {
-            inboxPath = configValues["InboxPath"];
-        }
-
-        if (configValues.ContainsKey("StringConnection"))
-        {
-            stringConnection = configValues["StringConnection"];
-        }
         return configValues;
 
     }
 
+
+    public void ReadXml()
+    {
+        XmlDocument xmlDoc = new XmlDocument();
+        xmlDoc.Load(XmlPath);
+
+        XmlNode headerNode = xmlDoc.SelectSingleNode("header");
+        string asnNumber = headerNode.SelectSingleNode("asnNumber").InnerText;
+        string documentReference = headerNode.SelectSingleNode("documentReference").InnerText;
+        string comment2 = headerNode.SelectSingleNode("comment2").InnerText;
+        Console.WriteLine("asnNumber: " + asnNumber);
+        Console.WriteLine("documentReference: " + documentReference);
+        Console.WriteLine("comment2: " + comment2);
+
+        XmlNodeList lineItemNodes = xmlDoc.SelectNodes("header/lineItem");
+        foreach (XmlNode lineItemNode in lineItemNodes)
+        {
+            string asnReferenceLine = lineItemNode.SelectSingleNode("asnReferenceLine").InnerText;
+            string itemCode = lineItemNode.SelectSingleNode("itemCode").InnerText;
+            string quantityOrdered = lineItemNode.SelectSingleNode("quantityOrdered").InnerText;
+            string itemPrice = lineItemNode.SelectSingleNode("itemPrice").InnerText;
+
+            Console.WriteLine("asnReferenceLine: " + asnReferenceLine);
+            Console.WriteLine("itemCode: " + itemCode);
+            Console.WriteLine("quantityOrdered: " + quantityOrdered);
+            Console.WriteLine("itemPrice: " + itemPrice);
+        }
+
+    }
     
 
 
@@ -123,7 +151,8 @@ class ETL
     {
         ETL programa = new ETL();
         programa.LeerConfig();
-       // programa.TestDB();
+        programa.TestDB();
+        programa.ReadXml();
         
         
     }
