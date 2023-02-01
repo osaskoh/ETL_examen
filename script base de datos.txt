@@ -1,0 +1,20 @@
+CREATE DATABASE ETL;
+CREATE TABLE Header (
+  Referencia varchar(20) NOT NULL,
+  ReferenciaDocumento nvarchar(20) NOT NULL,
+  Direccion nchar(20) NOT NULL
+);
+CREATE TABLE Detail (
+  Referencia nchar(5) NOT NULL,
+  LineaReferencia int NOT NULL,
+  Cantidad int NOT NULL,
+  Precio numeric(5,3) NOT NULL
+);
+
+CREATE TABLE Logs (
+  ID int IDENTITY(1,1) NOT NULL,
+  EventTime datetime NOT NULL,
+  EventType nvarchar(50) NOT NULL,
+  EventMessage nvarchar(max) NOT NULL,
+  PRIMARY KEY (ID)
+);
