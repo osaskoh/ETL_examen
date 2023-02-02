@@ -15,25 +15,26 @@ class ETL
     string quantityOrdered;
     string itemPrice;
     //Variables de entorno
-    static string stringConnection;
-    static string inboxPath;
-    static string XmlPath;
-    bool errorflag = false;
+    static string stringConnection; //variable que almacena la cadena de conexión a la BD
+    static string inboxPath; //Variavle que almacena la ruta de la carpeta inbox
+    static string XmlPath; //variable que almacena la ruta del archivo XML y su nombre.
+    bool errorflag = false; //variable auxiliar para detectar errores de validación en tiempo real
     string pathconfig = @"C:\code\ETL\ETL\";
     public void TestDB()
     {
-
+        //valida que se pueda conectar a la base de datos con los parametros de conexión extraidos del archivo config
         using (SqlConnection connection = new SqlConnection(stringConnection))
         {
             connection.Open();
             Console.WriteLine("Connected to SQL Server!");
             connection.Close();
+            //crea log de el evento, a partir de aquí se hará en cada evento crucial en el proceso etl.
             UpdateLog("Base de datos","Conexión exitosa");
         }
         ValidarRuta();
     }
 
-
+    //método para ingresar un registro a la tabla log , donde recibe dos parametros y algunos más se calculan en la inserción "datetime" por ejemplo
     public void UpdateLog(String EventoTipo,String EventoInfo)
     {
 
@@ -58,6 +59,7 @@ class ETL
         }
         
     }
+    //Método para validar que exista la carpeta inbox en el path que se le dió en el archivo config
     public String ValidarRuta()
     {
         
@@ -73,7 +75,7 @@ class ETL
         }
         return "";
     }
-   
+   //Método para leer el archivo config y asignar el contenido en variables de entorno
     public void LeerConfig()
     {
         Dictionary<string, string> configValues = ReadConfigFile(pathconfig+"config.cfg");
@@ -101,7 +103,8 @@ class ETL
         Console.WriteLine("XmlPath: " + XmlPath);
         UpdateLog("Aviso","Archivo de configuraciones cargado");
     }
-
+    //método para crear un diccionario de variables, en donde el Key va a la izquierda limitado por un signo "="
+    //y a la derecha el value, este método sirve se adapta para ingresar más variables en el futuro
     private static Dictionary<string, string> ReadConfigFile(string fileName)
     {
         Dictionary<string, string> configValues = new Dictionary<string, string>();
@@ -127,7 +130,7 @@ class ETL
 
     }
 
-
+    //Método para leer el archivo xml, el path y el nombre del archivo se extrae del archivo config
     public void ReadXml()
     {
         XmlDocument xmlDoc = new XmlDocument();
@@ -147,6 +150,8 @@ class ETL
         }
 
         XmlNodeList lineItemNodes = xmlDoc.SelectNodes("header/lineItem");
+        //en el siguiente foreach evaluamos si existen más de 1 combo de registros "item" en el archivo
+        //por cada ciclo foreach se evaluan los datos y se ingresan paralelamente a la base de datos en la tabla Detail
         foreach (XmlNode lineItemNode in lineItemNodes)
         {
             errorflag = false;
@@ -200,7 +205,7 @@ class ETL
         }
 
     }
-
+    //Método para validar las reglas de variables en los campos de Header
     public void ValidarHeader()
     {
         errorflag = false;
@@ -225,7 +230,7 @@ class ETL
             errorflag = true;
         }
     }
-
+    //Método para insertar los valores a la table header una vez validados
     public void InsertarHeader(string asnNumber, string documentReference, string comment2)
     {
 
@@ -262,7 +267,7 @@ class ETL
             }
         }
     }
-
+    //Método para insertar valores en la tabla detail una vez validados
     public void InsertarDetail(String Referencia, int ReferenciaLine, int Itemcode, int Cantidad, double Precio)
     {
         using (SqlConnection connection = new SqlConnection(stringConnection))
@@ -271,7 +276,7 @@ class ETL
             connection.Open();
 
             // Crear un comando SQL para insertar los valores
-            using (SqlCommand command = new SqlCommand("INSERT INTO Detail (Referencia, LineaReferencia, itemcode, Cantidad, Precio) VALUES (@Referencia, @LineaReferencia, @itemcode, @Cantidad,CONVERT(Numeric(5,3),@Precio) )", connection))
+            using (SqlCommand command = new SqlCommand("INSERT INTO Detail (Referencia, LineaReferencia, itemcode, Cantidad, Precio) VALUES (@Referencia, @LineaReferencia, @itemcode, @Cantidad,@Precio)", connection))
             {
                 // Agregar los valores como parámetros para prevenir la inyección de SQL
                 command.Parameters.AddWithValue("@Referencia", Referencia);
@@ -296,7 +301,26 @@ class ETL
         }
 
     }
+    /*
+    public void AjustarPrecio(decimal itemPrice)
+    {
+        
+        decimal adjustedPrice = AdjustPrice(itemPrice);
+        Console.WriteLine("Precio antes del ajuste: " + itemPrice);
+        Console.WriteLine("Precio despues del ajuste: " + adjustedPrice);
+    }
 
+    static decimal AdjustPrice(decimal price)
+    {
+        int precision = price.ToString().Split('.')[0].Length;
+        if (precision > 2)
+        {
+            price = Math.Round(price, 2 - precision, MidpointRounding.AwayFromZero);
+        }
+        string priceString = price.ToString("F3");
+        return decimal.Parse(priceString);
+    }
+    */
 
     public static void Main(string[] args)
     {
