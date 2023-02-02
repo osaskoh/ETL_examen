@@ -5,9 +5,10 @@ CREATE TABLE Header (
   Direccion nchar(20) NOT NULL
 );
 CREATE TABLE Detail (
-  Referencia nchar(5) NOT NULL,
+  Referencia nchar(20) NOT NULL,
   LineaReferencia int NOT NULL,
   Cantidad int NOT NULL,
+  itemcode int not null,
   Precio numeric(5,3) NOT NULL
 );
 
